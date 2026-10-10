@@ -1,4 +1,4 @@
-import { FileInfo, ImportInfo, ComponentInfo } from '@/types/file-manifest';
+import type { FileInfo, ImportInfo, ComponentInfo } from '@/types/file-manifest';
 
 /**
  * Parse a JavaScript/JSX file to extract imports, exports, and component info
@@ -23,10 +23,15 @@ export function parseJavaScriptFile(content: string, filePath: string): Partial<
 function extractImports(content: string): ImportInfo[] {
   const imports: ImportInfo[] = [];
   
-  // Match import statements
-  const importRegex = /import\s+(?:(.+?)\s+from\s+)?['"](.+?)['"]/g;
+  // Match import statements. Anchored to column 0 so quoted code samples — prompt
+  // templates, generated Python/Vite configs — are not mistaken for this file's own
+  // imports (real JS/TS imports always start at column 0). The clause may span
+  // several lines: Prettier wraps long import lists. It must never cross a statement
+  // boundary though — a `;` means the import ended without a `from`, so the fallback
+  // below picks up its module path instead.
+  const importRegex = /^import\s+(?:((?:(?!;)[\s\S])*?)\s+from\s+)?['"](.+?)['"]/gm;
   const matches = content.matchAll(importRegex);
-  
+
   for (const match of matches) {
     const [, importClause, source] = match;
     const importInfo: ImportInfo = {
@@ -36,19 +41,29 @@ function extractImports(content: string): ImportInfo[] {
     };
     
     if (importClause) {
+      // Drop comments before reading the specifier list, e.g.
+      //   import {
+      //     Header, // sticky header
+      //   } from './layout';
+      const clause = importClause
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/\/[^\n]*/g, '')
+        .trim();
+
       // Handle default import
-      const defaultMatch = importClause.match(/^(\w+)(?:,|$)/);
+      const defaultMatch = clause.match(/^(\w+)(?:,|$)/);
       if (defaultMatch) {
         importInfo.defaultImport = defaultMatch[1];
       }
       
       // Handle named imports
-      const namedMatch = importClause.match(/\{([^}]+)\}/);
+      const namedMatch = clause.match(/\{([^}]+)\}/);
       if (namedMatch) {
         importInfo.imports = namedMatch[1]
           .split(',')
           .map(imp => imp.trim())
-          .map(imp => imp.split(/\s+as\s+/)[0].trim());
+          .map(imp => imp.split(/\s+as\s+/)[0].trim())
+          .filter(imp => imp.length > 0);
       }
     }
     
