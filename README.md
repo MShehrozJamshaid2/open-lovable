@@ -6,9 +6,11 @@ Chat with AI to build React apps instantly. An example app made by the [Firecraw
 
 ## Setup
 
+This is the `MShehrozJamshaid2/open-lovable` fork (branch `agent/mika/f059874bd543`). The app is a Next.js 15 (Turbopack) AI-powered website builder that uses Firecrawl scraping + Vercel/E2B sandboxing to clone or generate websites.
+
 1. **Clone & Install**
 ```bash
-git clone https://github.com/firecrawl/open-lovable.git
+git clone https://github.com/MShehrozJamshaid2/open-lovable.git
 cd open-lovable
 pnpm install  # or npm install / yarn install
 ```
@@ -57,10 +59,26 @@ VERCEL_OIDC_TOKEN=auto_generated_by_vercel_env_pull
 
 3. **Run**
 ```bash
-pnpm dev  # or npm run dev / yarn dev
+pnpm dev  # or npm run dev / yarn dev (Next.js 15 with Turbopack; port 3000)
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
+
+## Architecture — quick map
+
+- **App**: Next.js 15 (`type: module`, Turbopack) — React 19 + Tailwind + shadcn/ui
+- **Entry points**: `/` (home/scrape) → `/generation` (builder with sandbox + AI chat) → `/builder` (demo page) → `/api/search`, `/api/scrape-website`, `/api/scrape-url-enhanced` (Firecrawl), `/api/create-ai-sandbox-v2` (sandbox)
+- **Firecrawl**: `lib/sandbox/` (providers), `app/api/scrape-website/route.ts`, `app/api/search/route.ts` — key env: `FIRECRAWL_API_KEY`
+- **AI providers**: `lib/ai/provider-manager.ts` (OpenAI / Anthropic / Groq / Google via `@ai-sdk/*`; also `AI_GATEWAY_API_KEY` for Vercel gateway)
+- **Sandbox**: `lib/sandbox/factory.ts` — `vercel` (default / OIDC) or `e2b`; `SANDBOX_PROVIDER` env selects
+- **Config**: `config/app.config.ts` (models, sandbox timeouts, UI settings)
+- **Build**: `npm run build` (Next 15); `pnpm dev` for dev server
+
+Verified setup notes:
+- `pnpm install` (or `npm install`) installs `bun.lock` + `pnpm-lock.yaml` + `package-lock.json`; repo uses `pnpm` primarily.
+- `.env.local` needs at minimum `FIRECRAWL_API_KEY` + one AI key (`GEMINI_API_KEY`/`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GROQ_API_KEY`) + either `SANDBOX_PROVIDER=vercel` + `VERCEL_OIDC_TOKEN`/`VERCEL_TOKEN` OR `SANDBOX_PROVIDER=e2b` + `E2B_API_KEY`.
+- The `.env.example` in repo (line 23) lists `GROQ_API_KEY`; README lists 5 providers; both correct — just pick at least one.
+- The original clone URL in README pointed to upstream `firecrawl/open-lovable`; corrected to `MShehrozJamshaid2/open-lovable` above.
 
 ## License
 
